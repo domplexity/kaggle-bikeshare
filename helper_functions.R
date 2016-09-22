@@ -16,6 +16,9 @@ preparedata <- function(raw_dataset, is_training_data = FALSE){
   raw_dataset$dayofthemonth <- as.POSIXlt(raw_dataset$datetime)$mday
   raw_dataset$month <- as.POSIXlt(raw_dataset$datetime)$mon + 1
   if (is_training_data == TRUE) {
+    raw_dataset$logcasual <- log(raw_dataset$casual +1)
+    raw_dataset$logregistered <- log(raw_dataset$registered +1)
+    raw_dataset$logcount <- log(raw_dataset$count +1)
     val_selector <- as.POSIXlt(raw_dataset$datetime)$mday > 14
     train_data <- raw_dataset[val_selector == FALSE,]
     validation_data <- raw_dataset[val_selector == TRUE,]

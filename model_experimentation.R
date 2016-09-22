@@ -186,16 +186,36 @@ performance_table[dim(performance_table)[1]+1,] <- c("m6.svm",
 library(e1071)
 # do not run - too slow
 m7.tune <- tune(method = svm,
+                train.x = count ~ season * weather * workingday,
+                ranges = list(epsilon = seq(0.5,1.0,0.1), cost = 2^(5:8)),
+                data = train_data)
+# just some quick experiment
+
+############
+
+m8.tune <- tune(method = svm,
                 train.x = count ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
-                ranges = list(epsilon = seq(0.4,0.6,0.1), cost = 2^(4:5)),
+                ranges = list(epsilon = seq(0.5,1.0,0.1), cost = 2^(5:8)),
                 data = train_data)
 
-m7.svm <- svm(formula = count ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
-              data = train_data)
 
-m7.predictions <- predict(m6.svm, newdata = validation_data)
+############
+# random forest on logarithmic rentals as dependent var in order to deal with outliers
+library(randomForest)
 
-performance_table[dim(performance_table)[1]+1,] <- c("m7.svm",
-                                                     "svm with all variables & tuned parameters",
-                                                     "",
-                                                     validate_predictions(predictions = m7.predictions, validation_set = validation_data))
+#1. Build & Train
+m9.rf.casual <- randomForest(formula = logcasual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                             data = train_data)
+m9.rf.registered <- randomForest(formula = logregistered ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                                 data = train_data)
+
+# 2. Get validation set accuracy
+m9.predictions <- predict(object = m9.rf.casual,newdata = validation_data,type = "response") + predict(object = m9.rf.registered,newdata = validation_data,type = "response")
+performance_table[dim(performance_table)[1]+1,] <- c("m4.rf",
+                                                     "rf with complete featureset and separate training for casual and registered rentals",
+                                                     "casual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity",
+                                                     validate_predictions(predictions = m4.predictions, validation_set = validation_data))
+
+
+# 3. predict on test set and submit
+# before submitting, retrain on whole training set
