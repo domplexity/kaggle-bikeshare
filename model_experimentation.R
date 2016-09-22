@@ -226,4 +226,9 @@ performance_table[dim(performance_table)[1]+1,] <- c("m9.rf",
 ###########
 #playing around
 
-
+tuneRF(x = holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+       y = logcasual,
+       data = train_data,
+       stepFactor=1.5, 
+       improve=1e-5, 
+       ntree=500)
