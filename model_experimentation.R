@@ -184,6 +184,7 @@ performance_table[dim(performance_table)[1]+1,] <- c("m6.svm",
 
 # 1. Tune, Build & Train
 library(e1071)
+# do not run - too slow
 m7.tune <- tune(method = svm,
                 train.x = count ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
                 ranges = list(epsilon = seq(0.4,0.6,0.1), cost = 2^(4:5)),
