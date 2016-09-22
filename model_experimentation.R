@@ -209,13 +209,21 @@ m9.rf.casual <- randomForest(formula = logcasual ~ holiday * houroftheday * seas
 m9.rf.registered <- randomForest(formula = logregistered ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
                                  data = train_data)
 
-# 2. Get validation set accuracy
-m9.predictions <- predict(object = m9.rf.casual,newdata = validation_data,type = "response") + predict(object = m9.rf.registered,newdata = validation_data,type = "response")
-performance_table[dim(performance_table)[1]+1,] <- c("m4.rf",
-                                                     "rf with complete featureset and separate training for casual and registered rentals",
-                                                     "casual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity",
-                                                     validate_predictions(predictions = m4.predictions, validation_set = validation_data))
+# 2. Get validation set accuracy + revert the logarithm
+m9.predictions <- exp(predict(object = m9.rf.casual,newdata = validation_data,type = "response")) - 1 + exp(predict(object = m9.rf.registered,newdata = validation_data,type = "response")) -1
+
+performance_table[dim(performance_table)[1]+1,] <- c("m9.rf",
+                                                     " random forest on logarithmic rentals as dependent var in order to deal with outliers",
+                                                     "logcasual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity",
+                                                     validate_predictions(predictions = m9.predictions, validation_set = validation_data))
 
 
 # 3. predict on test set and submit
 # before submitting, retrain on whole training set
+
+
+
+###########
+#playing around
+
+
