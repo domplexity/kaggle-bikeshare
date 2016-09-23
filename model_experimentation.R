@@ -30,6 +30,11 @@ temp <- c("mean_of_train",
           validate_predictions(predictions = c(rep(mean(train_data$count),dim(validation_data)[1])), validation_set = validation_data))
 performance_table[dim(performance_table)[1]+1,] <- temp
 
+
+# import submission file to write in results
+temp_sub <- read.csv("sampleSubmission.csv")
+
+
 # 1
 # try and compare a bunch of different (simple) models on the same featureset
 # used features: houroftheday, season, weather, workingday
@@ -198,6 +203,9 @@ m8.tune <- tune(method = svm,
                 ranges = list(epsilon = seq(0.5,1.0,0.1), cost = 2^(5:8)),
                 data = train_data)
 
+m8.predictions <- predict(m8.tune$best.model, newdata = validation_data) 
+validate_predictions(predictions = m8.predictions, validation_set = validation_data)
+
 
 ############
 # random forest on logarithmic rentals as dependent var in order to deal with outliers
@@ -226,9 +234,66 @@ performance_table[dim(performance_table)[1]+1,] <- c("m9.rf",
 ###########
 #playing around
 
-tuneRF(x = holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
-       y = logcasual,
-       data = train_data,
+m10.tune.logcasual <- tuneRF(x = train_data[,c("holiday","houroftheday","weather","workingday","temp", "atemp", "windspeed","humidity")],
+       y = train_data$logcasual,
+       mtryStart = 4,
        stepFactor=1.5, 
        improve=1e-5, 
-       ntree=500)
+       ntree=1000,
+       doBest=TRUE)
+
+m10.tune.logregistered <- tuneRF(x = train_data[,c("holiday","houroftheday","weather","workingday","temp", "atemp", "windspeed","humidity")],
+                             y = train_data$logcasual,
+                             mtryStart = 4,
+                             stepFactor=1.5, 
+                             improve=1e-5, 
+                             ntree=1000,
+                             doBest=TRUE)
+
+m10.predictions <- exp(predict(object = m10.tune.logcasual,newdata = validation_data,type = "response")) - 1 + exp(predict(object = m10.tune.logregistered,newdata = validation_data,type = "response")) -1
+validate_predictions(predictions = m10.predictions, validation_set = validation_data)
+
+
+
+###############
+# enhance the model
+
+m9.1.rf.casual <- randomForest(formula = logcasual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                             data = train_data,
+                             ntree = 1000,
+                             mtry = 6,
+                             importance = TRUE,
+                             corr.bias = TRUE)
+m9.1.rf.registered <- randomForest(formula = logregistered ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                                 data = train_data,
+                                 ntree = 1000,
+                                 mtry = 6,
+                                 importance = TRUE,
+                                 corr.bias = TRUE)
+
+# 2. Get validation set accuracy + revert the logarithm
+m9.1.predictions <- exp(predict(object = m9.1.rf.casual,newdata = validation_data,type = "response")) - 1 + exp(predict(object = m9.1.rf.registered,newdata = validation_data,type = "response")) -1
+
+performance_table[dim(performance_table)[1]+1,] <- c("m9.1.rf",
+                                                     " random forest on logarithmic rentals as dependent var in order to deal with outliers. parameters adjusted.",
+                                                     "logcasual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity",
+                                                     validate_predictions(predictions = m9.1.predictions, validation_set = validation_data))
+
+
+# before submitting, retrain on whole training set
+m9.1.rf.casual <- randomForest(formula = logcasual ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                               data = rbind(train_data,validation_data),
+                               ntree = 1000,
+                               mtry = 6,
+                               importance = TRUE,
+                               corr.bias = TRUE)
+m9.1.rf.registered <- randomForest(formula = logregistered ~ holiday * houroftheday * season * weather * workingday * temp * atemp * windspeed * humidity,
+                                   data = rbind(train_data,validation_data),
+                                   ntree = 1000,
+                                   mtry = 6,
+                                   importance = TRUE,
+                                   corr.bias = TRUE)
+
+m9.1.test.predictions <- exp(predict(object = m9.1.rf.casual,newdata = test_data,type = "response")) - 1 + exp(predict(object = m9.1.rf.registered,newdata = test_data,type = "response")) -1
+temp_sub$count <- m9.1.test.predictions
+write.csv(x = temp_sub, file = "rf9_1_tune_model_submission.csv",row.names = FALSE)
